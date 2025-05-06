@@ -175,6 +175,20 @@
 
    END OF TERMS AND CONDITIONS
 
+      本项目基于 Apache License 2.0 开源发布，但增加如下限制条款：
+
+      1. 禁止任何未经授权的商业用途，包括但不限于将本软件作为产品销售、集成至商业服务、或通过本软件直接或间接获利。
+      2. 本项目仅供学习、研究、个人使用目的。
+      3. 若有商业使用需求，请联系原作者获取授权。
+      4. 作者本人保留本项目的商业化权利。
+
+      This project is released under the Apache License 2.0, with the following additional restrictions:
+
+      1. Any commercial use without explicit permission is strictly prohibited. This includes (but is not limited to) selling the software, incorporating it into a commercial service, or generating profit directly or indirectly from it.
+      2. The software is intended for educational, research, or personal use only.
+      3. For commercial licensing, please contact the author.
+      4. The author reserves the exclusive right to commercialize this project.
+
    APPENDIX: How to apply the Apache License to your work.
 
       To apply the Apache License to your work, attach the following
@@ -199,3 +213,6 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+
+
