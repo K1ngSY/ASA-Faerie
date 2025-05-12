@@ -2,7 +2,6 @@
 #define WINDOWSELECTIONDIALOG_H
 
 #include <QDialog>
-#include <vector>
 #include <QString>
 #include <windows.h>
 

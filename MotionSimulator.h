@@ -1,36 +1,31 @@
 #ifndef MOTIONSIMULATOR_H
 #define MOTIONSIMULATOR_H
 
+#include <QImage>
 #include <QString>
 #include <windows.h>
-#include <QImage>
-#include <QObject>
 
-class MotionSimulator : public QObject{
+class MotionSimulator
+{
 public:
-    explicit MotionSimulator(QObject *parent = nullptr);
+    MotionSimulator();
 
-    // 新的 sendTextAlarm 函数使用 OCR 识别文本作为参数
+    static void LeftClick(HWND targetHwnd, int targetX, int targetY);
+
+    static void simulateKey(WORD vk);
+
+    static void CtrlV();
+
+    static void clickGameCenterAndKeyL(HWND windowHwnd);
+
+    static void pasteImage(const QImage &img);
+
     static void sendTextAlarm(const QString &ocrText, HWND wechatHwnd);
 
     static void sendImageAlarm(const QImage &screenShot, HWND wechatHwnd);
 
-    static void SimulateLeftClick(HWND targetHwnd, int targetX, int targetY);
-
-    static void simulateCtrlV();
-
-    static HBITMAP QImageToHBITMAP(const QImage &image);
-
-    static void pasteText(const QString &text);
-
-    static void simulateKey(WORD vk);
-
-    static void pasteImage(const QImage &img);
-
     static void sendGroupCall(const QString &targetIndices);
 
-signals:
-    void finsh();
 };
 
 #endif // MOTIONSIMULATOR_H

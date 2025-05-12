@@ -1,4 +1,4 @@
-#include "OverlayWindow.h"
+#include "overlaywindow.h"
 #include <QPainter>
 #include <QColor>
 #include <QPen>
@@ -34,6 +34,7 @@ void OverlayWindow::setRedDotPosition(int x, int y)
     m_redDotX = x;
     m_redDotY = y;
     update();
+    emit overlayUpdated();
 }
 
 void OverlayWindow::paintEvent(QPaintEvent *event)
@@ -77,5 +78,5 @@ void OverlayWindow::updateOverlayPosition()
     move(rect.left, rect.top);
     resize(width, height);
     update();
-    qDebug() << "微信窗口绘制刷新";
+    qDebug() << "覆盖窗口绘制刷新";
 }

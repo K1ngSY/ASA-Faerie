@@ -1,19 +1,16 @@
-#ifndef GAMEMONITOR_H
-#define GAMEMONITOR_H
+#ifndef VISUALPROCESSOR_H
+#define VISUALPROCESSOR_H
 
+#include <QObject>
 #include <QImage>
 #include <QString>
 #include <windows.h>
+#include <cfloat>
 #include <opencv2/opencv.hpp>
 
-class GameMonitor {
+class VisualProcessor
+{
 public:
-    // 截图三个 QImage（全屏、ROI1、ROI2）
-    static bool captureWindowImage(HWND hwnd,
-                                   QImage &roi1,
-                                   QImage &roi2,
-                                   QImage &fullImage);
-
     // 对 roi1（蓝通道）和 roi2（红通道）做 OCR
     static bool ocrImage(const QImage &inputImage1,
                          const QImage &inputImage2,
@@ -33,13 +30,15 @@ public:
     static QImage CvMatToQImage(const cv::Mat &inMat);
 
     // PrintWindow API 截图
-    static bool CaptureWindowWithPrintWindow(HWND hwnd, QImage &image);
+    static bool printWindow(HWND hwnd, QImage &image);
 
-    static bool checkForRejoin(HWND Hwnd);
+    static bool checkJoinCard(HWND Hwnd, int &Val_X, int &Val_Y);
 
-    static bool checkJoinCard(HWND Hwnd, int &X, int&Y);
+    static bool checkStartButton(HWND Hwnd);
 
-    static bool checkJoinLast(HWND Hwnd);
+
+signals:
+    void logMessage(const QString &msg);
 };
 
-#endif // GAMEMONITOR_H
+#endif // VISUALPROCESSOR_H

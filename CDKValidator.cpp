@@ -1,6 +1,3 @@
-// CDKValidator.cpp
-#include "CDKValidator.h"
-
 #include <windows.h>               // 用于获取卷序列号
 #include <intrin.h>                // 用于 __cpuid，如果你不需要 CPU ID，这一行也可以删掉
 #include <QNetworkAccessManager>
@@ -13,6 +10,7 @@
 #include <QNetworkInterface>       // 用来获取 MAC
 #include <QDebug>
 #include <QUrl>
+#include "cdkvalidator.h"
 
 // 1. 获取系统盘卷序列号作为一个 HWID
 static QString getVolumeSerialHWID() {
@@ -61,7 +59,7 @@ ValidateResult CDKValidator::validate(const QString &cdk) {
     body["hwids"] = arr;
 
     // 准备 HTTP 请求
-    QNetworkRequest req(QUrl("//你的后端验证AIP，具体json格式暂先查看源码推导，之后会写入ReadMe//"));
+    QNetworkRequest req(QUrl("https://cdk.k8126.uk/api/validate"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QNetworkAccessManager mgr;

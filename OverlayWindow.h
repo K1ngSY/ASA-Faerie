@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QTimer>
+#include <QThread>
 #include <windows.h>
 
 class OverlayWindow : public QWidget
@@ -21,6 +22,8 @@ private:
     int m_redDotY;
     QTimer m_updateTimer;
     void updateOverlayPosition();
+signals:
+    void overlayUpdated();
 };
 
 #endif // OVERLAYWINDOW_H
