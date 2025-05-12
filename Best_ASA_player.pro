@@ -10,10 +10,8 @@ CONFIG += lrelease
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    AuthDialog.cpp \
     WindowSelectionDialog.cpp \
     alarm.cpp \
-    cdkvalidator.cpp \
     crashhandler.cpp \
     expirationdetector.cpp \
     gamehandler.cpp \
@@ -25,10 +23,8 @@ SOURCES += \
     visualprocessor.cpp
 
 HEADERS += \
-    AuthDialog.h \
     WindowSelectionDialog.h \
     alarm.h \
-    cdkvalidator.h \
     crashhandler.h \
     expirationdetector.h \
     gamehandler.h \
@@ -39,7 +35,6 @@ HEADERS += \
     visualprocessor.h
 
 FORMS += \
-    AuthDialog.ui \
     WindowSelectionDialog.ui \
     mainwindow.ui
 
