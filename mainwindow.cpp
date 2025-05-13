@@ -4,6 +4,7 @@
 #include "WindowSelectionDialog.h"
 #include "alarm.h"
 #include "gamehandler.h"
+#include "motionsimulator.h"
 #include <QString>
 #include <QDateTime>
 #include <QThread>
@@ -52,14 +53,20 @@ MainWindow::MainWindow(QWidget *parent) :
     m_expirationDetectorThread = new QThread(this);
     m_ExpirationDetector->moveToThread(m_expirationDetectorThread);
 
-
     connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::startMonitoring);
     connect(ui->selectButton, &QPushButton::clicked, this, &MainWindow::selectWindow);
     connect(ui->closeMonitoringButton, &QPushButton::clicked, this, &MainWindow::stopMonitoring);
-    connect(ui->overlayVisibleCheckBox, SIGNAL(stateChanged(int)), this, SLOT(gameOverlayVisibilityChanged(int)));
+    connect(ui->overlayVisibleCheckBox, &QCheckBox::checkStateChanged, this, &MainWindow::overlayVisibilityChanged);
+    /*
     connect(ui->isGroupCheckBox, SIGNAL(checkStateChanged(Qt::CheckState state)), m_alarmWorker, SLOT(updateGroupStatus(Qt::CheckState)));
     connect(ui->sendMessageCheckBox, SIGNAL(checkStateChanged(Qt::CheckState state)), m_alarmWorker, SLOT(updateTextAlarmStatus(Qt::CheckState)));
     connect(ui->makeCallCheckBox, SIGNAL(checkStateChanged(Qt::CheckState state)), m_alarmWorker, SLOT(updateCallAlarmStatus(Qt::CheckState)));
+    */
+    connect(ui->isGroupCheckBox, &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateGroupStatus);
+    connect(ui->sendMessageCheckBox, &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateTextAlarmStatus);
+    connect(ui->makeCallCheckBox, &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateCallAlarmStatus);
+
+
     connect(m_alarmWorker, SIGNAL(gotPic_1(QImage)), this, SLOT(updateImage1(QImage)));
     connect(m_alarmWorker, SIGNAL(gotPic_2(QImage)), this, SLOT(updateImage2(QImage)));
     connect(m_alarmWorker, SIGNAL(alarm(QString,QString,QString,QString)), this, SLOT(onAlarmSent(QString,QString,QString,QString)));
@@ -89,13 +96,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_rejoinProcessorThread, &QThread::finished, m_RejoinProcessor, &QObject::deleteLater);
     connect(m_rejoinProcessorThread, &QThread::finished, m_rejoinProcessorThread, &QObject::deleteLater);
 
-
-
-
-
-
-
-
+    connect(m_ExpirationDetector, &ExpirationDetector::expirated, this, &MainWindow::onExpired);
 
     connect(ui->horizontalSlider_X, SIGNAL(sliderMoved(int)), this, SLOT(updateOverlayPosition_Slider(int)));
     connect(ui->horizontalSlider_Y, SIGNAL(sliderMoved(int)), this, SLOT(updateOverlayPosition_Slider(int)));
@@ -119,15 +120,9 @@ void MainWindow::setExpireDate(const QString &dateString)
         // 如果包含时间部分，可以尝试另一种格式：
         m_expireDateTime = QDateTime::fromString(dateString, "yyyy-MM-dd hh:mm");
     }
-    /*
-    // 3) 启动定时器并立即检查一次
-    if (m_expireDateTime.isValid()) {
-        m_expireTimer->start();
-        checkExpiration();
-    } else {
-        appendLog("setExpireDate: 无法解析到期时间：" + dateString);
-    }
-    */
+    m_expirationDetectorThread->start();
+    m_ExpirationDetector->setExpDateTime(m_expireDateTime);
+    m_ExpirationDetector->start();
 }
 
 void MainWindow::appendLog(const QString &message)
@@ -166,7 +161,10 @@ void MainWindow::startMonitoring()
 {
     if(!m_alarmPlatformTitle.isEmpty() && m_alarmPlatformHwnd && gameHandler::checkWindowExist(m_alarmPlatformHwnd)) {
         if (!m_alarmThread) m_alarmThread = new QThread(this);
-        if (!m_alarmWorker) m_alarmWorker = new Alarm;
+        if (!m_alarmWorker) {
+            m_alarmWorker = new Alarm;
+            m_alarmWorker->moveToThread(m_alarmThread);
+        }
         if (!m_alarmThread->isRunning()) m_alarmThread->start();
         m_alarmWorker->setAPTitle(m_alarmPlatformTitle);
         m_alarmWorker->setAPHwnd(m_alarmPlatformHwnd);
@@ -180,8 +178,11 @@ void MainWindow::startMonitoring()
 
 void MainWindow::stopMonitoring()
 {
-    m_alarmWorker->stop();
-    ui->statusLabel->setText("监控已停止！");
+    if (m_alarmThread->isRunning()) {
+        m_alarmWorker->stop();
+        ui->statusLabel->setText("监控已停止！");
+    }
+    else appendLog("监控不在运行中 无法终止！");
 }
 
 void MainWindow::transferLog(const QString &message)
@@ -257,6 +258,24 @@ void MainWindow::onAlarmSent(const QString &p_ocrResult_1, const QString &p_ocrR
     appendLog(text);
 }
 
+void MainWindow::windowFailurehandler(char w)
+{
+    if (w == 'G') {
+        appendLog("找不到窗口：游戏窗口\n监控终止！");
+        this->stopMonitoring();
+    } else if (w == 'A') {
+        appendLog("找不到窗口：微信窗口\n监控终止！");
+        this->stopMonitoring();
+    } else {
+        appendLog("找不到窗口：未知错误");
+    }
+}
+
+void MainWindow::warningHandler(const QString &msg)
+{
+    QMessageBox::warning(this, "Warning!", msg);
+}
+
 void MainWindow::setGameHwnd(HWND gameHwnd)
 {
     m_gameHwnd = gameHwnd;
@@ -269,7 +288,7 @@ void MainWindow::onCHFinished_0(HWND gameHwnd)
     m_gameHwnd = gameHwnd;
     m_CrashHandler = nullptr;
     m_crashHandlerThread = nullptr;
-    startRejoin();
+    this->startRejoin();
     appendLog("开始加入上个对局！");
 }
 
@@ -284,8 +303,12 @@ void MainWindow::onCHFinished_1()
 void MainWindow::onGameCrashed()
 {
     stopMonitoring();
-    if (!m_crashHandlerThread) new QThread(this);
-    if (!m_CrashHandler)
+    if (!m_crashHandlerThread) m_crashHandlerThread = new QThread(this);
+    if (!m_CrashHandler) {
+        m_CrashHandler = new crashHandler;
+        m_CrashHandler->moveToThread(m_crashHandlerThread);
+    }
+    m_crashHandlerThread->start();
     m_CrashHandler->restartGame();
 }
 
@@ -300,18 +323,35 @@ void MainWindow::onRPFinished_0()
 
 void MainWindow::onRPFinished_1()
 {
-
+    m_rejoinProcessorThread->quit();
+    appendLog("游戏失败请手动修复 监控不会启动！");
+    m_RejoinProcessor = nullptr;
+    m_rejoinProcessorThread = nullptr;
 }
 
 void MainWindow::handleGameSessionDisconnected()
 {
+    this->stopMonitoring();
+    MotionSimulator::clickGameCenterAndEsc(m_gameHwnd);
+    this->startRejoin();
+}
 
+void MainWindow::onExpired()
+{
+    ui->statusLabel->setText("卡密已过期 程序即将关闭！");
+    this->stopMonitoring();
+    qApp->quit();
 }
 
 void MainWindow::startRejoin()
 {
+    if (!m_rejoinProcessorThread) m_rejoinProcessorThread = new QThread(this);
+    if (!m_RejoinProcessor) {
+        m_RejoinProcessor = new RejoinProcessor;
+        m_RejoinProcessor->moveToThread(m_rejoinProcessorThread);
+    }
+    if (!m_rejoinProcessorThread->isRunning()) m_rejoinProcessorThread->start();
     m_RejoinProcessor->setHwnd(m_gameHwnd);
-    m_rejoinProcessorThread->start();
     m_RejoinProcessor->startRejoin();
     appendLog("开始重新加入游戏！");
 }
