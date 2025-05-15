@@ -13,9 +13,9 @@ class crashHandler : public QObject
     Q_OBJECT
 public:
     explicit crashHandler(QObject *parent = nullptr);
-
+    ~crashHandler();
 public slots:
-    void restartGame();
+    void startRestartGame();
 
 signals:
     void gameIsReady();
@@ -29,14 +29,13 @@ signals:
 
 private:
     QElapsedTimer *m_ETimer;
-    QElapsedTimer *m_ETimer2;
     QTimer *m_Timer2;
     QTimer *m_Timer;
     int m_timeoutMs;
     int m_timeoutMsSB;
     HWND m_gameHwnd;
     QString m_crashKeywords;
-    void startScanSB();
+    void startScanStartButton();
     void closeCrashWindows();
 
 

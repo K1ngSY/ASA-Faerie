@@ -78,5 +78,5 @@ void OverlayWindow::updateOverlayPosition()
     move(rect.left, rect.top);
     resize(width, height);
     update();
-    qDebug() << "覆盖窗口绘制刷新";
+    // qDebug() << "覆盖窗口绘制刷新";
 }

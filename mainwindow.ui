@@ -19,8 +19,8 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>381</width>
-      <height>681</height>
+      <width>393</width>
+      <height>678</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -40,7 +40,7 @@
      <item>
       <widget class="QLabel" name="expireDateLabel">
        <property name="text">
-        <string/>
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
       </widget>
      </item>
@@ -138,17 +138,23 @@ background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgb
                 <item>
                  <layout class="QVBoxLayout" name="verticalLayout_4">
                   <item>
-                   <widget class="QPushButton" name="testAlarmpushButton">
-                    <property name="text">
-                     <string>测试Alarm(勾选发送识别内容)</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="testImagepushButton">
-                    <property name="text">
-                     <string>测试微信图片粘贴与发送</string>
-                    </property>
+                   <widget class="QWidget" name="widget" native="true">
+                    <widget class="QPushButton" name="testAlarmpushButton">
+                     <property name="geometry">
+                      <rect>
+                       <x>0</x>
+                       <y>10</y>
+                       <width>101</width>
+                       <height>71</height>
+                      </rect>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true">font: 700 10pt &quot;Microsoft YaHei UI&quot;;</string>
+                     </property>
+                     <property name="text">
+                      <string>测试警报发送</string>
+                     </property>
+                    </widget>
                    </widget>
                   </item>
                  </layout>
@@ -240,7 +246,7 @@ background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgb
         <item>
          <widget class="QLabel" name="label_6">
           <property name="text">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;微信群聊呼叫成员序号(以英文逗号分隔(例: 1,3,4,6))&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;微信群聊呼叫成员序号(以英文逗号分隔(例: 1,3,4,6))&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
@@ -251,6 +257,30 @@ background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgb
           </item>
           <item>
            <widget class="QPushButton" name="updateCallMemberButton">
+            <property name="styleSheet">
+             <string notr="true">font: 700 12pt &quot;Microsoft YaHei UI&quot;;</string>
+            </property>
+            <property name="text">
+             <string>确认修改</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_7">
+          <property name="text">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;您要重新加入的服务器ID&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QLineEdit" name="severCodelineEdit"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="severCodepushButton">
             <property name="styleSheet">
              <string notr="true">font: 700 12pt &quot;Microsoft YaHei UI&quot;;</string>
             </property>

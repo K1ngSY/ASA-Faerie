@@ -7,7 +7,7 @@
 #include "crashhandler.h"
 #include "rejoinprocessor.h"
 #include "expirationdetector.h"
-#include <alarm.h>
+#include "alarm.h"
 #include <QThread>
 #include <QDateTime>
 
@@ -27,6 +27,7 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void setExpireDate(const QString &dateString);
+    void startDectecExpiration();
 
 private:
     Ui::MainWindow *ui;
@@ -50,10 +51,12 @@ private:
     // 传入从崩溃处理器拿到的游戏窗口句柄 开始加入上个对局
     void startRejoin();
 
+public slots:
+    void overlayVisibilityChanged(int state);
 
 
 private slots:
-    void overlayVisibilityChanged(int state);
+
     void selectWindow();
     void startMonitoring();
     // 槽函数 停止监控并安全退出监控进程
@@ -62,11 +65,11 @@ private slots:
     void onWorkerFinished();
     void updateOverlayPosition_Slider(int value);
     void updateSliderRanges();
-    void updateCallMember(QString callMember);
+    void updateCallMember();
     void updateImage1(const QImage &pic);
     void updateImage2(const QImage &pic);
     void onAlarmSent(const QString &p_ocrResult_1, const QString &p_ocrResult_2, const QString &p_key_1, const QString &p_key_2);
-    void restartGame();
+    // void restartGame();
     void windowFailurehandler(char w);
     void warningHandler(const QString &msg);
     void setGameHwnd(::HWND gameHwnd);
@@ -74,10 +77,7 @@ private slots:
     void onCHFinished_0(::HWND gameHwnd);
     // 槽函数 处理崩溃失败后安全退出崩溃处理器
     void onCHFinished_1();
-    // 槽函数 初始化加入上一个游戏
-    void starRejoinGame();
 
-    void finishRejoinGame();
     // 槽函数 初始化崩溃处理
     void onGameCrashed();
     // 槽函数 成功加入上个对局 发起监控
@@ -86,6 +86,21 @@ private slots:
     void onRPFinished_1();
     // 槽函数处理局内掉线游戏
     void handleGameSessionDisconnected();
+
+    void onExpired();
+
+    void testAlarm();
+
+    void updateServerCode();
+
 signals:
+    void turnOnMonitor();
+    void turnOffMonitor();
+    void turnOnCrashHandler();
+    void turnOnRejoinProcessor();
+    void turnOnExpirationDetector();
+    void turnOffExpirationDetector();
+
+    void startTestAlarm();
 };
 #endif // MAINWINDOW_H

@@ -35,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // 注意 本线程启动前必须赋值两个参数 apTitle, apHwnd
     m_alarmWorker = new Alarm;
     m_alarmThread = new QThread(this);
+    m_alarmThread->start();
     m_alarmWorker->moveToThread(m_alarmThread);
 
     m_sliderUpdateTimer = new QTimer(this);
@@ -43,68 +44,156 @@ MainWindow::MainWindow(QWidget *parent) :
     // 本线程启动不需要任何参数
     m_CrashHandler = new crashHandler;
     m_crashHandlerThread = new QThread(this);
+    m_crashHandlerThread->start();
     m_CrashHandler->moveToThread(m_crashHandlerThread);
     // 注意 本线程启动需要一个参数 gameHwnd
     m_RejoinProcessor = new RejoinProcessor;
     m_rejoinProcessorThread = new QThread(this);
+    m_rejoinProcessorThread->start();
     m_RejoinProcessor->moveToThread(m_rejoinProcessorThread);
     // 注意 本线程启动需要一个参数 QDateTimer
     m_ExpirationDetector = new ExpirationDetector;
     m_expirationDetectorThread = new QThread(this);
+    m_expirationDetectorThread->start();
     m_ExpirationDetector->moveToThread(m_expirationDetectorThread);
 
+    // Buttons
     connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::startMonitoring);
     connect(ui->selectButton, &QPushButton::clicked, this, &MainWindow::selectWindow);
     connect(ui->closeMonitoringButton, &QPushButton::clicked, this, &MainWindow::stopMonitoring);
+    connect(ui->updateCallMemberButton, &QPushButton::clicked, this, &MainWindow::updateCallMember);
+    connect(ui->severCodepushButton, &QPushButton::clicked, this, &MainWindow::updateServerCode);
+
+    // Overlay visibility
     connect(ui->overlayVisibleCheckBox, &QCheckBox::checkStateChanged, this, &MainWindow::overlayVisibilityChanged);
-    /*
-    connect(ui->isGroupCheckBox, SIGNAL(checkStateChanged(Qt::CheckState state)), m_alarmWorker, SLOT(updateGroupStatus(Qt::CheckState)));
-    connect(ui->sendMessageCheckBox, SIGNAL(checkStateChanged(Qt::CheckState state)), m_alarmWorker, SLOT(updateTextAlarmStatus(Qt::CheckState)));
-    connect(ui->makeCallCheckBox, SIGNAL(checkStateChanged(Qt::CheckState state)), m_alarmWorker, SLOT(updateCallAlarmStatus(Qt::CheckState)));
-    */
-    connect(ui->isGroupCheckBox, &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateGroupStatus);
-    connect(ui->sendMessageCheckBox, &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateTextAlarmStatus);
-    connect(ui->makeCallCheckBox, &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateCallAlarmStatus);
 
+    // Alarm options
+    connect(ui->isGroupCheckBox,    &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateGroupStatus);
+    connect(ui->sendMessageCheckBox,&QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateTextAlarmStatus);
+    connect(ui->makeCallCheckBox,   &QCheckBox::checkStateChanged, m_alarmWorker, &Alarm::updateCallAlarmStatus);
 
-    connect(m_alarmWorker, SIGNAL(gotPic_1(QImage)), this, SLOT(updateImage1(QImage)));
-    connect(m_alarmWorker, SIGNAL(gotPic_2(QImage)), this, SLOT(updateImage2(QImage)));
-    connect(m_alarmWorker, SIGNAL(alarm(QString,QString,QString,QString)), this, SLOT(onAlarmSent(QString,QString,QString,QString)));
-    // 连接 游戏崩溃处理
-    connect(m_alarmWorker, &Alarm::gameCrashed, this, &MainWindow::onGameCrashed);
-    connect(m_alarmWorker, SIGNAL(findWindowsFailed(char)), this, SLOT(windowFailurehandler(char)));
-    connect(m_alarmWorker, SIGNAL(warning(QString)), this, SLOT(warningHandler(QString)));
-    connect(m_alarmWorker, SIGNAL(logMessage(QString)), this, SLOT(transferLog(QString)));
-    connect(m_alarmWorker, &Alarm::gameTimeout, this, &MainWindow::handleGameSessionDisconnected);
-    connect(m_alarmWorker, &Alarm::finished, this, &MainWindow::onWorkerFinished);
-    connect(m_alarmWorker, &Alarm::finished, m_alarmThread, &QThread::quit);
-    connect(m_alarmThread, &QThread::finished, m_alarmWorker, &QObject::deleteLater);
-    connect(m_alarmThread, &QThread::finished, m_alarmThread, &QObject::deleteLater);
+    // Alarm worker signals
+    connect(m_alarmWorker, &Alarm::gotPic_1,       this, &MainWindow::updateImage1);
+    connect(m_alarmWorker, &Alarm::gotPic_2,       this, &MainWindow::updateImage2);
+    connect(m_alarmWorker, &Alarm::alarm,          this, &MainWindow::onAlarmSent);
+    connect(m_alarmWorker, &Alarm::gameCrashed,    this, &MainWindow::onGameCrashed);
+    connect(m_alarmWorker, &Alarm::findWindowsFailed, this, &MainWindow::windowFailurehandler);
+    connect(m_alarmWorker, &Alarm::warning,        this, &MainWindow::warningHandler);
+    connect(m_alarmWorker, &Alarm::logMessage,     this, &MainWindow::transferLog);
+    connect(m_alarmWorker, &Alarm::gameTimeout,    this, &MainWindow::handleGameSessionDisconnected);
+    connect(m_alarmWorker, &Alarm::finished,       this, &MainWindow::onWorkerFinished);
+    // connect(m_alarmWorker, &Alarm::finished,       m_alarmThread, &QThread::quit);
+    connect(m_alarmThread, &QThread::finished,     m_alarmWorker, &QObject::deleteLater);
+    connect(m_alarmThread, &QThread::finished,     m_alarmThread, &QObject::deleteLater);
 
+    // Slider & timer
     connect(m_sliderUpdateTimer, &QTimer::timeout, this, &MainWindow::updateSliderRanges);
+    connect(ui->horizontalSlider_X, &QSlider::sliderMoved, this, &MainWindow::updateOverlayPosition_Slider);
+    connect(ui->horizontalSlider_Y, &QSlider::sliderMoved, this, &MainWindow::updateOverlayPosition_Slider);
 
-    connect(m_CrashHandler, SIGNAL(logMessage(QString)), this, SLOT(transferLog(QString)));
-    connect(m_CrashHandler, SIGNAL(finished_0(HWND)), this, SLOT(setGameHwnd(HWND)));
-    connect(m_CrashHandler, SIGNAL(finished_0(HWND)), this, SLOT(onCHFinished_0(HWND)));
+    // Crash handler
+    connect(m_CrashHandler, &crashHandler::logMessage, this, &MainWindow::transferLog);
+    connect(m_CrashHandler, &crashHandler::finished_0, this, &MainWindow::setGameHwnd);
+    connect(m_CrashHandler, &crashHandler::finished_0, this, &MainWindow::onCHFinished_0);
     connect(m_CrashHandler, &crashHandler::finished_1, this, &MainWindow::onCHFinished_1);
     connect(m_crashHandlerThread, &QThread::finished, m_CrashHandler, &QObject::deleteLater);
     connect(m_crashHandlerThread, &QThread::finished, m_crashHandlerThread, &QObject::deleteLater);
 
-    connect(m_RejoinProcessor, SIGNAL(logMessage(QString)), this, SLOT(transferLog(QString)));
+    // Rejoin processor
+    connect(m_RejoinProcessor, &RejoinProcessor::logMessage, this, &MainWindow::transferLog);
     connect(m_RejoinProcessor, &RejoinProcessor::finished_0, this, &MainWindow::onRPFinished_0);
     connect(m_RejoinProcessor, &RejoinProcessor::finished_1, this, &MainWindow::onRPFinished_1);
     connect(m_rejoinProcessorThread, &QThread::finished, m_RejoinProcessor, &QObject::deleteLater);
     connect(m_rejoinProcessorThread, &QThread::finished, m_rejoinProcessorThread, &QObject::deleteLater);
 
+    // Expiration detector
     connect(m_ExpirationDetector, &ExpirationDetector::expirated, this, &MainWindow::onExpired);
+    connect(m_ExpirationDetector, &ExpirationDetector::logMessage, this, &MainWindow::transferLog);
 
-    connect(ui->horizontalSlider_X, SIGNAL(sliderMoved(int)), this, SLOT(updateOverlayPosition_Slider(int)));
-    connect(ui->horizontalSlider_Y, SIGNAL(sliderMoved(int)), this, SLOT(updateOverlayPosition_Slider(int)));
-    m_sliderUpdateTimer->start(100);
+    // 连接启动信号
+    connect(this, &MainWindow::turnOnMonitor, m_alarmWorker, &Alarm::startMonitoring);
+    connect(this, &MainWindow::turnOffMonitor, m_alarmWorker, &Alarm::stopMonitoring);
+    connect(this, &MainWindow::turnOnExpirationDetector, m_ExpirationDetector, &ExpirationDetector::start);
+    connect(this, &MainWindow::turnOffExpirationDetector, m_ExpirationDetector, &ExpirationDetector::stop);
+    connect(this, &MainWindow::turnOnCrashHandler, m_CrashHandler, &crashHandler::startRestartGame);
+    connect(this, &MainWindow::turnOnRejoinProcessor, m_RejoinProcessor, &RejoinProcessor::startRejoin);
+
+    // Test
+    connect(ui->testAlarmpushButton, &QPushButton::clicked, this, &MainWindow::testAlarm);
+    connect(this, &MainWindow::startTestAlarm, m_alarmWorker, &Alarm::testFunc);
+
+    m_sliderUpdateTimer->start(200);
 }
 
 MainWindow::~MainWindow()
 {
+    // 1. 清理覆盖层窗口，防止未删除导致内存泄漏
+    if (m_overlayWindow) {
+        m_overlayWindow->hide();
+        delete m_overlayWindow;
+        m_overlayWindow = nullptr;
+    }
+
+    // 2. 停止并删除滑动条更新定时器
+    if (m_sliderUpdateTimer) {
+        m_sliderUpdateTimer->stop();
+        delete m_sliderUpdateTimer;
+        m_sliderUpdateTimer = nullptr;
+    }
+
+    // 3. 停止并删除告警线程和工作对象
+    if (m_alarmThread) {
+        m_alarmThread->quit();    // 请求线程退出
+        m_alarmThread->wait();    // 等待线程彻底结束
+        // delete m_alarmThread;
+        m_alarmThread = nullptr;
+    }
+    if (m_alarmWorker) {
+        m_alarmWorker->deleteLater();
+        // delete m_alarmWorker;
+        m_alarmWorker = nullptr;
+    }
+
+    // 4. 停止并删除崩溃处理线程和对象
+    if (m_crashHandlerThread) {
+        m_crashHandlerThread->quit();
+        m_crashHandlerThread->wait();
+        // delete m_crashHandlerThread;
+        m_crashHandlerThread = nullptr;
+    }
+    if (m_CrashHandler) {
+        m_CrashHandler->deleteLater();
+        // delete m_CrashHandler;
+        m_CrashHandler = nullptr;
+    }
+
+    // 5. 停止并删除重连处理线程和对象
+    if (m_rejoinProcessorThread) {
+        m_rejoinProcessorThread->quit();
+        m_rejoinProcessorThread->wait();
+        // delete m_rejoinProcessorThread;
+        m_rejoinProcessorThread = nullptr;
+    }
+    if (m_RejoinProcessor) {
+        m_RejoinProcessor->deleteLater();
+        // delete m_RejoinProcessor;
+        m_RejoinProcessor = nullptr;
+    }
+
+    // 6. 停止并删除到期检测线程和对象
+    if (m_expirationDetectorThread) {
+        m_expirationDetectorThread->quit();
+        m_expirationDetectorThread->wait();
+        // delete m_expirationDetectorThread;
+        m_expirationDetectorThread = nullptr;
+    }
+    if (m_ExpirationDetector) {
+        m_ExpirationDetector->deleteLater();
+        //delete m_ExpirationDetector;
+        m_ExpirationDetector = nullptr;
+    }
+
+    // 7. 最后删除 UI，释放所有子控件
     delete ui;
 }
 
@@ -120,9 +209,12 @@ void MainWindow::setExpireDate(const QString &dateString)
         // 如果包含时间部分，可以尝试另一种格式：
         m_expireDateTime = QDateTime::fromString(dateString, "yyyy-MM-dd hh:mm");
     }
-    m_expirationDetectorThread->start();
     m_ExpirationDetector->setExpDateTime(m_expireDateTime);
-    m_ExpirationDetector->start();
+}
+
+void MainWindow::startDectecExpiration()
+{
+    emit turnOnExpirationDetector();
 }
 
 void MainWindow::appendLog(const QString &message)
@@ -152,6 +244,8 @@ void MainWindow::selectWindow()
         QMessageBox::warning(this, "提示", "未选择微信窗口");
         return;
     }
+    m_alarmWorker->setAPHwnd(m_alarmPlatformHwnd);
+    m_alarmWorker->setAPTitle(m_alarmPlatformTitle);
     appendLog("窗口选择完成");
     ui->statusLabel->setText("窗口选择完成！");
     QMessageBox::information(this, "提示", "窗口选择完成");
@@ -160,15 +254,9 @@ void MainWindow::selectWindow()
 void MainWindow::startMonitoring()
 {
     if(!m_alarmPlatformTitle.isEmpty() && m_alarmPlatformHwnd && gameHandler::checkWindowExist(m_alarmPlatformHwnd)) {
-        if (!m_alarmThread) m_alarmThread = new QThread(this);
-        if (!m_alarmWorker) {
-            m_alarmWorker = new Alarm;
-            m_alarmWorker->moveToThread(m_alarmThread);
-        }
-        if (!m_alarmThread->isRunning()) m_alarmThread->start();
         m_alarmWorker->setAPTitle(m_alarmPlatformTitle);
         m_alarmWorker->setAPHwnd(m_alarmPlatformHwnd);
-        m_alarmWorker->startMonitoring();
+        emit turnOnMonitor();
         ui->statusLabel->setText("监控已启动！");
     }
     else {
@@ -178,11 +266,14 @@ void MainWindow::startMonitoring()
 
 void MainWindow::stopMonitoring()
 {
-    if (m_alarmThread->isRunning()) {
-        m_alarmWorker->stop();
+    if (m_alarmThread) {
+
+        // m_alarmWorker->stop();
+        emit turnOffMonitor();
+        qDebug() << "监控线程存在，尝试终止Timer";
         ui->statusLabel->setText("监控已停止！");
     }
-    else appendLog("监控不在运行中 无法终止！");
+    else appendLog("监控不存在 无法终止！");
 }
 
 void MainWindow::transferLog(const QString &message)
@@ -192,8 +283,6 @@ void MainWindow::transferLog(const QString &message)
 
 void MainWindow::onWorkerFinished()
 {
-    m_alarmWorker = nullptr;
-    m_alarmThread = nullptr;
     appendLog("已响应监控线程发出的结束信号！");
 }
 
@@ -215,9 +304,10 @@ void MainWindow::updateOverlayPosition_Slider(int value)
         m_dot_X = ui->horizontalSlider_X->value();
         m_dot_Y = ui->horizontalSlider_Y->value();
         m_overlayWindow->setRedDotPosition(m_dot_X, m_dot_Y);
+        m_alarmWorker->setCallButtonPosition(m_dot_X, m_dot_Y);
     }
     qDebug() << "侦测到滑块变动：" << value;
-    appendLog("微信窗口坐标已变更");
+    // appendLog("微信窗口坐标已变更");
 }
 
 void MainWindow::updateSliderRanges()
@@ -242,6 +332,11 @@ void MainWindow::updateSliderRanges()
     }
 }
 
+void MainWindow::updateCallMember()
+{
+    m_alarmWorker->updateCallMember(ui->callMemberlineEdit->text());
+}
+
 void MainWindow::updateImage1(const QImage &pic)
 {
     ui->image1Label->setPixmap(QPixmap::fromImage(pic));
@@ -263,6 +358,7 @@ void MainWindow::windowFailurehandler(char w)
     if (w == 'G') {
         appendLog("找不到窗口：游戏窗口\n监控终止！");
         this->stopMonitoring();
+        emit turnOnCrashHandler();
     } else if (w == 'A') {
         appendLog("找不到窗口：微信窗口\n监控终止！");
         this->stopMonitoring();
@@ -283,50 +379,36 @@ void MainWindow::setGameHwnd(HWND gameHwnd)
 
 void MainWindow::onCHFinished_0(HWND gameHwnd)
 {
-    m_crashHandlerThread->quit();
+    // m_crashHandlerThread->quit();
     appendLog(QString("选定游戏句柄：%1").arg((qulonglong)gameHwnd));
     m_gameHwnd = gameHwnd;
-    m_CrashHandler = nullptr;
-    m_crashHandlerThread = nullptr;
     this->startRejoin();
     appendLog("开始加入上个对局！");
 }
 
 void MainWindow::onCHFinished_1()
 {
-    m_crashHandlerThread->quit();
+    // m_crashHandlerThread->quit();
     appendLog(QString("处理游戏崩溃失败 请手动处理！"));
-    m_CrashHandler = nullptr;
-    m_crashHandlerThread = nullptr;
 }
 
 void MainWindow::onGameCrashed()
 {
     stopMonitoring();
-    if (!m_crashHandlerThread) m_crashHandlerThread = new QThread(this);
-    if (!m_CrashHandler) {
-        m_CrashHandler = new crashHandler;
-        m_CrashHandler->moveToThread(m_crashHandlerThread);
-    }
-    m_crashHandlerThread->start();
-    m_CrashHandler->restartGame();
+    emit turnOnCrashHandler();
 }
 
 void MainWindow::onRPFinished_0()
 {
-    m_rejoinProcessorThread->quit();
+    // m_rejoinProcessorThread->quit();
     appendLog("重启游戏成功 即将启动监控！");
-    m_RejoinProcessor = nullptr;
-    m_rejoinProcessorThread = nullptr;
     this->startMonitoring();
 }
 
 void MainWindow::onRPFinished_1()
 {
-    m_rejoinProcessorThread->quit();
+    // m_rejoinProcessorThread->quit();
     appendLog("游戏失败请手动修复 监控不会启动！");
-    m_RejoinProcessor = nullptr;
-    m_rejoinProcessorThread = nullptr;
 }
 
 void MainWindow::handleGameSessionDisconnected()
@@ -339,20 +421,32 @@ void MainWindow::handleGameSessionDisconnected()
 void MainWindow::onExpired()
 {
     ui->statusLabel->setText("卡密已过期 程序即将关闭！");
+    emit turnOffExpirationDetector();
     this->stopMonitoring();
     qApp->quit();
 }
 
+void MainWindow::testAlarm()
+{
+    if (!m_alarmPlatformHwnd) {
+        appendLog("testAlarm: 未选择微信窗口，无法测试警报");
+    } else {
+        emit startTestAlarm();
+    }
+}
+
+void MainWindow::updateServerCode()
+{   QString code = ui->severCodelineEdit->text();
+    if (!code.isEmpty()) {
+        m_RejoinProcessor->setServerCode(code);
+        appendLog(QString("updateServerCode：got new code: %1").arg(code));
+    }
+}
+
 void MainWindow::startRejoin()
 {
-    if (!m_rejoinProcessorThread) m_rejoinProcessorThread = new QThread(this);
-    if (!m_RejoinProcessor) {
-        m_RejoinProcessor = new RejoinProcessor;
-        m_RejoinProcessor->moveToThread(m_rejoinProcessorThread);
-    }
-    if (!m_rejoinProcessorThread->isRunning()) m_rejoinProcessorThread->start();
     m_RejoinProcessor->setHwnd(m_gameHwnd);
-    m_RejoinProcessor->startRejoin();
+    emit turnOnRejoinProcessor();
     appendLog("开始重新加入游戏！");
 }
 

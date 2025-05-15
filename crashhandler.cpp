@@ -14,7 +14,6 @@
 crashHandler::crashHandler(QObject *parent):
     QObject{parent},
     m_ETimer(nullptr),
-    m_ETimer2(nullptr),
     m_Timer2(nullptr),
     m_Timer(nullptr),
     m_timeoutMs(120000),
@@ -31,27 +30,71 @@ crashHandler::crashHandler(QObject *parent):
     connect(this, &crashHandler::scanSBTimeOut, this, &crashHandler::exit_1);
 }
 
-void crashHandler::restartGame()
+crashHandler::~crashHandler()
 {
-    closeCrashWindows();
-    // 尝试通过 Steam 协议启动游戏
-    emit logMessage("restartGame: 游戏未检测到，正在尝试启动……");
-    QDesktopServices::openUrl(QUrl("steam://rungameid/2399830"));
-    m_ETimer = new QElapsedTimer;
-    m_ETimer->start();
-    emit logMessage("restartGame: 等待游戏窗口出现（最多 120 秒）……");
-    m_Timer = new QTimer;
-    connect(m_Timer, &QTimer::timeout, this, &crashHandler::scanGameWindow);
-    m_Timer->start(10000);
+    // 1. 如果计时器还在运行，先停止它们
+    if (m_Timer && m_Timer->isActive()) {
+        m_Timer->stop();
+    }
+    if (m_Timer2 && m_Timer2->isActive()) {
+        m_Timer2->stop();
+    }
+
+    // 2. QObject 机制会自动 delete 有 parent 的 QTimer，
+    //    但为了保险，可以手动断开信号连接并置空指针
+    if (m_Timer) {
+        disconnect(m_Timer, &QTimer::timeout, this, &crashHandler::scanGameWindow);
+        m_Timer = nullptr;
+    }
+    if (m_Timer2) {
+        disconnect(m_Timer2, &QTimer::timeout, this, &crashHandler::scanStartButton);
+        m_Timer2 = nullptr;
+    }
+
+    // 3. 手动 delete 非-QObject 计时器，避免内存泄漏
+    if (m_ETimer) {
+        delete m_ETimer;
+        m_ETimer = nullptr;
+    }
+
+    // 4. 父类析构会处理剩余 QObject 子对象
 }
 
-void crashHandler::startScanSB()
+void crashHandler::startRestartGame()
 {
-    m_ETimer2 = new QElapsedTimer;
-    m_ETimer2->start();
-    m_Timer2 = new QTimer;
-    connect(m_Timer2, &QTimer::timeout, this, &crashHandler::scanStartButton);
-    m_Timer2->start(10000);
+    // 尝试关闭所有崩溃窗口
+    closeCrashWindows();
+    // 通过 Steam 协议启动游戏
+    emit logMessage("restartGame: 正在尝试启动……");
+    QDesktopServices::openUrl(QUrl("steam://rungameid/2399830"));
+    if (!m_ETimer) {
+        m_ETimer = new QElapsedTimer;
+    }
+    if (!m_Timer) {
+        m_Timer = new QTimer(this);
+        connect(m_Timer, &QTimer::timeout, this, &crashHandler::scanGameWindow);
+    }
+    if (!m_Timer->isActive()) {
+        m_Timer->start(10000);
+    }
+    if(m_ETimer) {
+        m_ETimer->start();
+    }
+    emit logMessage("restartGame: 等待游戏窗口出现（最多 120 秒）……");
+}
+
+void crashHandler::startScanStartButton()
+{
+    if (!m_Timer2) {
+        m_Timer2 = new QTimer(this);
+        connect(m_Timer2, &QTimer::timeout, this, &crashHandler::scanStartButton);
+    }
+    if (!m_Timer2->isActive()) {
+        m_Timer2->start(10000);
+    }
+    if(m_ETimer) {
+        m_ETimer->start();
+    }
 }
 
 void crashHandler::closeCrashWindows()
@@ -132,7 +175,7 @@ void crashHandler::scanGameWindow()
     else {
         gameHandler::bindWindows("ArkAscended", m_gameHwnd);
         if (m_gameHwnd) {
-            startScanSB();
+            startScanStartButton();
             emit gameIsRunning();
         }
     }
@@ -140,29 +183,34 @@ void crashHandler::scanGameWindow()
 
 void crashHandler::scanStartButton()
 {
-    if (m_ETimer2->elapsed() >= m_timeoutMsSB) {
+    if (m_ETimer->elapsed() >= m_timeoutMsSB) {
         emit scanSBTimeOut();
     }
     else{
         if (VisualProcessor::checkStartButton(m_gameHwnd)) {
             emit gameIsReady();
-
         }
     }
 }
 
 void crashHandler::finishScanGameWindow()
 {
-    delete m_ETimer;
-    m_Timer->stop();
-    m_Timer->deleteLater();
+    if (m_Timer && m_Timer->isActive()) {
+        m_Timer->stop();
+        emit logMessage("CrashHandler: finishScanGameWindow: 已暂停Timer");
+    } else {
+        emit logMessage("CrashHandler: finishScanGameWindow: Tiemr不存在或不在运行！");
+    }
 }
 
 void crashHandler::finishScanStartButton()
 {
-    delete m_ETimer2;
-    m_Timer2->stop();
-    m_Timer2->deleteLater();
+    if (m_Timer2 && m_Timer2->isActive()) {
+        m_Timer2->stop();
+        emit logMessage("CrashHandler: finishScanStartButton: 已暂停Timer");
+    } else {
+        emit logMessage("CrashHandler: finishScanStartButton: Tiemr不存在或不在运行！");
+    }
 }
 
 void crashHandler::exit_0()

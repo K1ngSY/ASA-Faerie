@@ -10,12 +10,12 @@
 #include <QPixmap>
 #include <QImage>
 #include <QDebug>
+#include <QDir>
 #include <tesseract/baseapi.h>
 #include <leptonica/allheaders.h>
 #include <windows.h>
 #include <opencv2/opencv.hpp>
-// const char *tessdataPath = "C:/msys64/mingw64/share/tessdata";
-const char *tessdataPath = "tessdata";
+
 
 bool VisualProcessor::printWindow(HWND hwnd, QImage &image) {
     RECT r;
@@ -74,9 +74,13 @@ bool VisualProcessor::checkJoinCard(HWND Hwnd, int &Val_X, int &Val_Y)
     QImage gray = CvMatToQImage(ch1[0]);
 
     // 3. 初始化 Tesseract
+    QString appDir   = QCoreApplication::applicationDirPath();   // exe 所在目录
+    QString dataPath = QDir(appDir).filePath("tessdata");       // appDir/tessdata
+    std::string tessdataPath = dataPath.toStdString();
+
     tesseract::TessBaseAPI ocr;
 
-    if (ocr.Init(tessdataPath, "chi_sim+eng")) {
+    if (ocr.Init(tessdataPath.c_str(), "chi_sim+eng")) {
         qDebug() << "checkJoinCard: Tesseract Init 失败";
         return false;
     }
@@ -152,10 +156,16 @@ bool VisualProcessor::ocrImage(const QImage &inputImage1,
                            QString &recognizedText1,
                            QString &recognizedText2)
 {
+    // const char *tessdataPath = "C:/msys64/mingw64/share/tessdata";
+    // const char *tessdataPath = "tessdata";
+
+    QString appDir   = QCoreApplication::applicationDirPath();   // exe 所在目录
+    QString dataPath = QDir(appDir).filePath("tessdata");       // appDir/tessdata
+    std::string tessdataPath = dataPath.toStdString();
     tesseract::TessBaseAPI ocr;
     // 用 mingw64 下的 tessdata 目录
 
-    if (ocr.Init(tessdataPath, "chi_sim+eng")) {
+    if (ocr.Init(tessdataPath.c_str(), "chi_sim+eng")) {
         qDebug() << "ocrImage: Init 失败，请检查 tessdataPath";
         return false;
     }
@@ -198,12 +208,12 @@ bool VisualProcessor::analyzeGameWindow(HWND hwnd,
     if (!printWindow(hwnd, fullImage)) {
         qDebug() << "visualprocessor: 截图失败！";
         return false;
-    }
+    } else qDebug() << "visualprocessor: 截图成功！";
     RECT rect;
     if (!GetWindowRect(hwnd, &rect)) {
-        qDebug() << "captureWindowImage: GetWindowRect 失败";
+        qDebug() << "GetWindowRect 失败";
         return false;
-    }
+    } else qDebug() << "GetWindowRect 成功";
     int w = rect.right - rect.left;
     int h = rect.bottom - rect.top;
 
@@ -259,10 +269,13 @@ bool VisualProcessor::checkStartButton(HWND Hwnd) {
     qDebug() << "checkForRejoin: ROI size:" << roi.width() << "x" << roi.height();
 
     // 进入OCR流程
+    QString appDir   = QCoreApplication::applicationDirPath();   // exe 所在目录
+    QString dataPath = QDir(appDir).filePath("tessdata");       // appDir/tessdata
+    std::string tessdataPath = dataPath.toStdString();
     tesseract::TessBaseAPI ocr;
     // 用 mingw64 下的 tessdata 目录
 
-    if (ocr.Init(tessdataPath, "chi_sim+eng")) {
+    if (ocr.Init(tessdataPath.c_str(), "chi_sim+eng")) {
         qDebug() << "ocrImage: 初始化OCR路径失败，请检查 tessdataPath";
         return false;
     }

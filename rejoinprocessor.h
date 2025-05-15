@@ -2,7 +2,7 @@
 #define REJOINPROCESSOR_H
 
 #include <QObject>
-
+#include <QString>
 #include <windows.h>
 
 class RejoinProcessor : public QObject
@@ -11,7 +11,7 @@ class RejoinProcessor : public QObject
 public:
     explicit RejoinProcessor(QObject *parent = nullptr, HWND gameHwnd = nullptr);
     void setHwnd(HWND gameHwnd);
-
+    void setServerCode(QString serverCode);
 public slots:
     void startRejoin();
 
@@ -24,6 +24,7 @@ signals:
     void logMessage(const QString &msg);
 private:
     HWND m_gameHwnd;
+    QString m_serverCode;
 };
 
 #endif // REJOINPROCESSOR_H
