@@ -85,6 +85,7 @@ void crashHandler::startRestartGame()
 
 void crashHandler::startScanStartButton()
 {
+    emit logMessage("crashHandler: 开始检测启动游戏按钮 10s 一次（最多 60 秒）");
     if (!m_Timer2) {
         m_Timer2 = new QTimer(this);
         connect(m_Timer2, &QTimer::timeout, this, &crashHandler::scanStartButton);

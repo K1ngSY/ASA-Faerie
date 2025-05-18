@@ -17,7 +17,7 @@ Alarm::Alarm(QObject *parent, QString APTitle, HWND APHwnd)
     : QObject{parent},
     m_gameWindowTitle("ArkAscended"),
     m_alarmPlatformTitle(APTitle),
-    m_ocrKeywords("发现,detected,an,enemy"),
+    m_ocrKeywords("dino,发现,detected,an,enemy"),
     m_callMember("1"),
     m_gameWindowHwnd(nullptr),
     m_alarmPlatformHwnd(APHwnd),
@@ -28,7 +28,7 @@ Alarm::Alarm(QObject *parent, QString APTitle, HWND APHwnd)
     m_callButton_Y(20),
     m_timer(nullptr),
     m_keywords(QStringList()),
-    m_errorkeys("disconnected,timeout"),
+    m_errorkeys("HOST,CONNECTION,TIMEOUT,主机连接超时"),
     m_errorKeywords(QStringList())
 {
     m_keywords = m_ocrKeywords.split(",", Qt::SkipEmptyParts);
@@ -179,7 +179,7 @@ void Alarm::stopMonitoring(){
 
 void Alarm::doOneRound(){
     if (!bindWindows(m_gameWindowTitle)) {
-        emit warning("doOneRound: 无法绑定游戏窗口！");
+        emit logMessage("doOneRound: 无法绑定游戏窗口！");
         emit findWindowsFailed('G');
         return;
     }
@@ -213,22 +213,21 @@ void Alarm::doOneRound(){
                     emit logMessage("alarm: Failed to get window rect");
                     return;
                 }
-                int width = rect.right - rect.left;
-                int height = rect.bottom - rect.top;
-
-                MotionSimulator::LeftClick(m_gameWindowHwnd, width / 2, height / 2);
-                MotionSimulator::WheelScroll(-1000);
-                QThread::msleep(100);
-                MotionSimulator::WheelScroll(-1000);
-                QThread::msleep(100);
-                MotionSimulator::WheelScroll(-1000);
-                QThread::msleep(100);
-                MotionSimulator::WheelScroll(-1000);
-                QThread::msleep(100);
-                MotionSimulator::WheelScroll(-1000);
-                QThread::msleep(100);
-                MotionSimulator::WheelScroll(-1000);
-                QThread::msleep(100);
+                // int width = rect.right - rect.left;
+                // int height = rect.bottom - rect.top;
+                // MotionSimulator::LeftClick(m_gameWindowHwnd, width / 2, height / 2);
+                // MotionSimulator::WheelScroll(-1000);
+                // QThread::msleep(100);
+                // MotionSimulator::WheelScroll(-1000);
+                // QThread::msleep(100);
+                // MotionSimulator::WheelScroll(-1000);
+                // QThread::msleep(100);
+                // MotionSimulator::WheelScroll(-1000);
+                // QThread::msleep(100);
+                // MotionSimulator::WheelScroll(-1000);
+                // QThread::msleep(100);
+                // MotionSimulator::WheelScroll(-1000);
+                // QThread::msleep(100);
                 if (!VisualProcessor::analyzeGameWindow(m_gameWindowHwnd, ocrResult1, ocrResult2, pic1, pic2, screenShot)) {
                     emit logMessage("Alarm:analyzeGameWindow:Failed!");
                     return;
@@ -238,15 +237,14 @@ void Alarm::doOneRound(){
                 emit logMessage("OCR result (OCR识别到文字): " + ocrResult1 + " " + ocrResult2);
                 int tries = 0;
                 while (ocrResult2.isEmpty() && tries < 10) {
-                    MotionSimulator::clickGameCenterAndKeyL(m_gameWindowHwnd);
                     emit logMessage("侦测到部落日志未打开，尝试自动打开部落日志");
+                    MotionSimulator::clickGameCenterAndKeyL(m_gameWindowHwnd);
+                    QThread::msleep(500);
                     if (!VisualProcessor::analyzeGameWindow(m_gameWindowHwnd, ocrResult1, ocrResult2, pic1, pic2, screenShot)) {
                         emit logMessage("Fail to capture or recognize!\n截图或 OCR 失败!");
                         return;
                     }
                     if (!ocrResult2.isEmpty()) {
-                        // ui->image1Label->setPixmap(QPixmap::fromImage(pic1));
-                        // ui->image2Label->setPixmap(QPixmap::fromImage(pic2));
                         emit gotPic_1(pic1);
                         emit gotPic_2(pic2);
                         break;
@@ -276,8 +274,21 @@ void Alarm::doOneRound(){
                             break;
                         }
                     }
-
+                    // 冒泡排序
                     auto entries = splitTribeLogEntries(ocrResult2);
+                    int size = entries.size();
+                    for (int i = 0; i < size - 1; i++) {
+                        bool swapped = false;
+                        for (int f = 0; f < size - i - 1; f++) {
+                            if(entries[f].first < entries[f + 1].first) {
+                                entries.swapItemsAt(f, f + 1);
+                                swapped = true;
+                            }
+                        }
+                        if (!swapped) {
+                            break;
+                        }
+                    }
                     for (auto &p : entries) {
                         const QString &ts      = p.first;
                         const QString &content = p.second;

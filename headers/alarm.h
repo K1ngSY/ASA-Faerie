@@ -6,6 +6,7 @@
 #include <QImage>
 #include <QTimer>
 #include <QStringList>
+#include <QSet>
 #include <windows.h>
 
 class Alarm : public QObject
@@ -13,21 +14,24 @@ class Alarm : public QObject
     Q_OBJECT
 public:
     explicit Alarm(QObject *parent = nullptr, QString APTitle = "", HWND APHwnd = nullptr);
+    ~Alarm();
     void setAPTitle(QString APTitle);
     void setAPHwnd(HWND APHwnd);
+    void updateCallMember(QString callMember);
+    void setCallButtonPosition(int x, int y);
 
 public slots:
     // 启动监控循环
     void startMonitoring();
-    void stop();
-    void updateGroupCallSettings(const QString &targetIndices);
-    void updateTextStatus(bool need);
-    void updateCallStatus(bool need);
+    void stopMonitoring();
+    // void updateGroupCallSettings(const QString &targetIndices);
+    // void updateTextStatus(bool need);
+    // void updateCallStatus(bool need);
     void setAP(QString title, HWND APHwnd);
     void updateGroupStatus(Qt::CheckState state);
     void updateTextAlarmStatus(Qt::CheckState state);
     void updateCallAlarmStatus(Qt::CheckState state);
-    void updateCallMember(QString callMember);
+    void testFunc();
 
 signals:
     // 信号：给主窗追加日志
@@ -59,7 +63,6 @@ private:
     bool m_isGroup;
     bool m_needText;
     bool m_needCall;
-    bool m_CONTINUE;
     int m_callButton_X;
     int m_callButton_Y;
     QTimer *m_timer;
@@ -68,6 +71,20 @@ private:
     QStringList m_errorKeywords;
     void saveSettings();
     void loadSettings();
+    bool bindWindows(const QString &title);
+
+    // 持久化日志文件路径
+    QString m_logFilePath;
+
+    // 严重/非严重关键词列表
+    QStringList m_seriousKeywords;
+    QStringList m_nonSeriousKeywords;
+
+    // 读取并按时间戳分割 OCR 一大段部落日志
+    QList<QPair<QString, QString>> splitTribeLogEntries(const QString &rawTribeLog);
+
+    // 如果日志文件中不存在该时间戳，则把“时间戳\t内容”写入文件，返回 true；否则返回 false
+    bool appendIfNewLogEntry(const QString &ts, const QString &content);
 
     // 副栉龙警报文本, 部落日志文本, 游戏截图，发微信消息选框值, 打微信电话选框值, 副栉龙是否监测到警报, 部落日志是否监测到警报, 窗口句柄, 微信电话坐标 x, y, 微信窗口是否为群聊, 呼叫群聊成员
     void sendAlarm(const QString &text1,

@@ -5,6 +5,7 @@
 #include "alarm.h"
 #include "gamehandler.h"
 #include "motionsimulator.h"
+#include "alarmsender.h"
 #include <QString>
 #include <QDateTime>
 #include <QThread>
@@ -29,33 +30,45 @@ MainWindow::MainWindow(QWidget *parent) :
     m_ExpirationDetector(nullptr),
     m_expirationDetectorThread(nullptr),
     m_dot_X(20),
-    m_dot_Y(20)
+    m_dot_Y(20),
+    m_serverMonitor(nullptr),
+    m_serverMonitorThread(nullptr),
+    m_alarmSender(nullptr),
+    m_alarmSenderThread(nullptr),
+    m_serverComboBoxUpdated(false),
+    m_playerNumberAlarmSent(false)
 {
     ui->setupUi(this);
     // 注意 本线程启动前必须赋值两个参数 apTitle, apHwnd
     m_alarmWorker = new Alarm;
     m_alarmThread = new QThread(this);
-    m_alarmThread->start();
     m_alarmWorker->moveToThread(m_alarmThread);
-
-    m_sliderUpdateTimer = new QTimer(this);
-    ui->image1Label->setScaledContents(true);
-    ui->image2Label->setScaledContents(true);
     // 本线程启动不需要任何参数
     m_CrashHandler = new crashHandler;
     m_crashHandlerThread = new QThread(this);
-    m_crashHandlerThread->start();
     m_CrashHandler->moveToThread(m_crashHandlerThread);
     // 注意 本线程启动需要一个参数 gameHwnd
     m_RejoinProcessor = new RejoinProcessor;
     m_rejoinProcessorThread = new QThread(this);
-    m_rejoinProcessorThread->start();
     m_RejoinProcessor->moveToThread(m_rejoinProcessorThread);
     // 注意 本线程启动需要一个参数 QDateTimer
     m_ExpirationDetector = new ExpirationDetector;
     m_expirationDetectorThread = new QThread(this);
-    m_expirationDetectorThread->start();
     m_ExpirationDetector->moveToThread(m_expirationDetectorThread);
+
+    // —— 初始化 ServerMonitor 线程 ——
+    m_serverMonitor = new ServerMonitor;
+    m_serverMonitorThread = new QThread(this);
+    m_serverMonitor->moveToThread(m_serverMonitorThread);
+
+    m_alarmSender = new AlarmSender;
+    m_alarmSenderThread = new QThread(this);
+    m_alarmSender->moveToThread(m_alarmSenderThread);
+
+    // 滑块范围刷新timer
+    m_sliderUpdateTimer = new QTimer(this);
+    ui->image1Label->setScaledContents(true);
+    ui->image2Label->setScaledContents(true);
 
     // Buttons
     connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::startMonitoring);
@@ -118,11 +131,26 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(this, &MainWindow::turnOnCrashHandler, m_CrashHandler, &crashHandler::startRestartGame);
     connect(this, &MainWindow::turnOnRejoinProcessor, m_RejoinProcessor, &RejoinProcessor::startRejoin);
 
+    // 服务器监控器(启动后每 5 秒拉一次)
+    connect(this, &MainWindow::turnOnServerMonitor, m_serverMonitor, &ServerMonitor::start);
+    connect(m_serverMonitor, &ServerMonitor::serversFetched, this, &MainWindow::onServersFetched);
+
+    //多线程警报发送机连接(AlarmSender)
+    connect(this, &MainWindow::playerNumberAlarm, m_alarmSender, &AlarmSender::sendText);
+
     // Test
     connect(ui->testAlarmpushButton, &QPushButton::clicked, this, &MainWindow::testAlarm);
     connect(this, &MainWindow::startTestAlarm, m_alarmWorker, &Alarm::testFunc);
 
     m_sliderUpdateTimer->start(200);
+    m_alarmThread->start();
+    m_crashHandlerThread->start();
+    m_rejoinProcessorThread->start();
+    m_expirationDetectorThread->start();
+    m_alarmSenderThread->start();
+    m_serverMonitorThread->start();
+
+    ui->thresholdSpinBox->setValue(70);
 }
 
 MainWindow::~MainWindow()
@@ -193,7 +221,27 @@ MainWindow::~MainWindow()
         m_ExpirationDetector = nullptr;
     }
 
-    // 7. 最后删除 UI，释放所有子控件
+    // 7. —— 清理 ServerMonitor 线程 ——
+    if (m_serverMonitor) {
+        m_serverMonitor->stop();
+        m_serverMonitorThread->quit();
+        m_serverMonitorThread->wait();
+        m_serverMonitor->deleteLater();
+        m_serverMonitorThread->deleteLater();
+        m_serverMonitor = nullptr;
+        m_serverMonitorThread = nullptr;
+    }
+
+    if(m_alarmSender) {
+        m_alarmSenderThread->quit();
+        m_alarmSenderThread->wait();
+        m_alarmSender->deleteLater();
+        m_alarmSenderThread->deleteLater();
+        m_alarmSender = nullptr;
+        m_alarmSenderThread = nullptr;
+    }
+
+    // 8. 最后删除 UI，释放所有子控件
     delete ui;
 }
 
@@ -248,7 +296,9 @@ void MainWindow::selectWindow()
     m_alarmWorker->setAPTitle(m_alarmPlatformTitle);
     appendLog("窗口选择完成");
     ui->statusLabel->setText("窗口选择完成！");
-    QMessageBox::information(this, "提示", "窗口选择完成");
+    // QMessageBox::information(this, "提示", "窗口选择完成");
+    emit turnOnServerMonitor();
+    appendLog("已启动服务器检测器");
 }
 
 void MainWindow::startMonitoring()
@@ -476,3 +526,78 @@ void MainWindow::overlayVisibilityChanged(int state)
         return;
     }
 }
+
+
+void MainWindow::onServersFetched(const QList<ServerInfo> &servers)
+{
+    // 0) 排序表格
+    QList<ServerInfo> sortedServers = servers;
+    int size = sortedServers.size();
+    bool swapped = false;
+    for (int i = 0; i < size - 1; i++) {
+        swapped = false;
+        for (int f = 0; f < size - i - 1; f++) {
+            if(sortedServers[f].sessionName > sortedServers[f + 1].sessionName) {
+                sortedServers.swapItemsAt(f, f + 1);
+                swapped = true;
+            }
+        }
+        if (!swapped) {
+            break;
+        }
+    }
+
+    // 1) 更新表格
+    ui->serverTableWidget->clearContents();
+    // ui->serverTableWidget->setColumnCount(2);
+    ui->serverTableWidget->setHorizontalHeaderLabels(QStringList{"Players", "Session"});
+    ui->serverTableWidget->setRowCount(sortedServers.size());
+    for (int i = 0; i < sortedServers.size(); ++i) {
+        ui->serverTableWidget->setItem(i, 0,
+                                       new QTableWidgetItem(QString::number(sortedServers[i].numPlayers)));
+        ui->serverTableWidget->setItem(i, 1,
+                                       new QTableWidgetItem(sortedServers[i].sessionName));
+    }
+    ui->serverTableWidget->resizeColumnsToContents();
+
+    // 2) 更新下拉列表（单选）
+    if (!m_serverComboBoxUpdated) {
+        ui->serverComboBox->clear();
+        for (auto &info : sortedServers)
+            ui->serverComboBox->addItem(info.sessionName);
+        m_serverComboBoxUpdated = true;
+    }
+
+    // 3) 检测阈值
+    if (!m_playerNumberAlarmSent) {
+        QString selected = ui->serverComboBox->currentText();
+        int threshold = ui->thresholdSpinBox->value();
+        for (auto &info : servers) {
+            if (info.sessionName == selected && info.numPlayers > threshold) {
+                QString msg = QString("服务器 %1 当前人数 %2，已超出阈值 %3")
+                                  .arg(info.sessionName)
+                                  .arg(info.numPlayers)
+                                  .arg(threshold);
+                emit playerNumberAlarm(msg, m_alarmPlatformHwnd);
+                emit sentPlayerNumberAlarm();
+                m_playerNumberAlarmSent = true;
+                break;
+            }
+        }
+    } else {
+        appendLog("服务器监控警报冷却中!");
+    }
+}
+
+void MainWindow::blockPlayerNumberAlarm()
+{
+    QTimer *timer = new QTimer();
+    timer->setSingleShot(true);
+    connect(timer, &QTimer::timeout, [this,timer]() {
+        m_playerNumberAlarmSent = false;
+        if (m_playerNumberAlarmSent) appendLog("服务器监控警报冷却已清除!");
+        timer->deleteLater(); // 手动释放内存
+    });
+    timer->start(300000);
+}
+

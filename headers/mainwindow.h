@@ -7,7 +7,9 @@
 #include "crashhandler.h"
 #include "rejoinprocessor.h"
 #include "expirationdetector.h"
+#include "servermonitor.h"
 #include "alarm.h"
+#include "alarmsender.h"
 #include <QThread>
 #include <QDateTime>
 
@@ -47,6 +49,19 @@ private:
     QThread *m_expirationDetectorThread;
     int m_dot_X;
     int m_dot_Y;
+
+    // ——— 新增服务器监控相关 ———
+    ServerMonitor *m_serverMonitor;
+    QThread       *m_serverMonitorThread;
+
+    //新增警报发送机接口
+    AlarmSender *m_alarmSender;
+    QThread *m_alarmSenderThread;
+
+    bool m_serverComboBoxUpdated;
+
+    bool m_playerNumberAlarmSent;
+
     void appendLog(const QString &message);
     // 传入从崩溃处理器拿到的游戏窗口句柄 开始加入上个对局
     void startRejoin();
@@ -93,6 +108,11 @@ private slots:
 
     void updateServerCode();
 
+    // 接收后台拉取到的服务器列表
+    void onServersFetched(const QList<ServerInfo> &servers);
+
+    void blockPlayerNumberAlarm();
+
 signals:
     void turnOnMonitor();
     void turnOffMonitor();
@@ -100,7 +120,10 @@ signals:
     void turnOnRejoinProcessor();
     void turnOnExpirationDetector();
     void turnOffExpirationDetector();
-
+    void turnOnServerMonitor();
     void startTestAlarm();
+    // 当选中的服务器人数超出阈值时发出
+    void playerNumberAlarm(const QString &message, HWND gameHwnd);
+    void sentPlayerNumberAlarm();
 };
 #endif // MAINWINDOW_H

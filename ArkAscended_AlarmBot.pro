@@ -8,30 +8,37 @@ CONFIG += lrelease
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+INCLUDEPATH += headers
+
+HEADERS += $$files(headers/*.h)
+SOURCES += $$files(src/*.cpp)
+FORMS += $$files(ui/*.ui)
 
 SOURCES += \
     WindowSelectionDialog.cpp \
     alarm.cpp \
+    alarmsender.cpp \
     crashhandler.cpp \
-    expirationdetector.cpp \
     gamehandler.cpp \
     main.cpp \
     mainwindow.cpp \
     motionsimulator.cpp \
     overlaywindow.cpp \
     rejoinprocessor.cpp \
+    servermonitor.cpp \
     visualprocessor.cpp
 
 HEADERS += \
     WindowSelectionDialog.h \
     alarm.h \
+    alarmsender.h \
     crashhandler.h \
-    expirationdetector.h \
     gamehandler.h \
     mainwindow.h \
     motionsimulator.h \
     overlaywindow.h \
     rejoinprocessor.h \
+    servermonitor.h \
     visualprocessor.h
 
 FORMS += \
@@ -47,24 +54,13 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 INCLUDEPATH += "C:/msys64/mingw64/include/opencv4"
 LIBS += -L"C:/msys64/mingw64/lib" \
         -lopencv_core \
-        -lopencv_imgproc \
-        -lopencv_imgcodecs
+        -lopencv_imgproc
 
 # ————————— Tesseract OCR & Leptonica —————————
 INCLUDEPATH += "C:/msys64/mingw64/include"
 LIBS += -L"C:/msys64/mingw64/lib" \
         -ltesseract \
         -lleptonica
-
-# ———————— 其他依赖（PNG, JPEG, etc.） ————————
-LIBS += -L"C:/msys64/mingw64/lib" \
-        -lpng16 \
-        -ljpeg \
-        -lz \
-        -ltiff \
-        -lwebp \
-        -lcurl \
-        -larchive
 
 # ————————— Windows API —————————
 win32: LIBS += -lUser32 -lgdi32 -lws2_32 -liphlpapi

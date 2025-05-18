@@ -165,6 +165,9 @@ bool VisualProcessor::ocrImage(const QImage &inputImage1,
     tesseract::TessBaseAPI ocr;
     // 用 mingw64 下的 tessdata 目录
 
+    /////////////////////////////////////////////////////////////////////////
+    tessdataPath = "tessdata";
+    /////////////////////////////////////////////////////////////////////////
     if (ocr.Init(tessdataPath.c_str(), "chi_sim+eng")) {
         qDebug() << "ocrImage: Init 失败，请检查 tessdataPath";
         return false;
@@ -237,7 +240,7 @@ bool VisualProcessor::analyzeGameWindow(HWND hwnd,
 
     // ROI1 用蓝色通道(索引 0)，ROI2 用红色通道(索引 2)
     pic1 = CvMatToQImage(ch1[0]);
-    pic2 = CvMatToQImage(ch2[2]);
+    // pic2 = CvMatToQImage(ch2[2]);
 
     if (!ocrImage(pic1, pic2, ocrResult1, ocrResult2)) {
         qDebug() << "visualprocessor: OCR识别失败！";
@@ -275,6 +278,11 @@ bool VisualProcessor::checkStartButton(HWND Hwnd) {
     tesseract::TessBaseAPI ocr;
     // 用 mingw64 下的 tessdata 目录
 
+
+
+    /////////////////////////////////////////////////////////////////////////
+    tessdataPath = "tessdata";
+    /////////////////////////////////////////////////////////////////////////
     if (ocr.Init(tessdataPath.c_str(), "chi_sim+eng")) {
         qDebug() << "ocrImage: 初始化OCR路径失败，请检查 tessdataPath";
         return false;
